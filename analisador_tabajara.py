@@ -12,64 +12,53 @@ import mir3.modules.features.flux as specfl
 from sklearn.neighbors import KNeighborsClassifier
 import glob
 
-def energia(target, plot=False):
-    wav2spec = spec.Wav2Spectrogram() # Objeto que converte arquivos wav para espectrogramas
-    s = wav2spec.convert(open(target, 'rb'), window_length=1024, window_step=512, spectrum_type='magnitude')
+def energia(sound, plot=False):
     en = energ.Energy()
-    energy = en.calc_track(s)
+    energy = en.calc_track(sound)
 
     if plot:
-      T = energy.metadata.sampling_configuration.ofs
-      t = np.linspace(0, len(energy.data)/T, len(energy.data))
-      plt.clf()
-      plt.plot(t, energy.data)
-      plt.xlabel('Tempo (s) ' + target)
-      plt.ylabel('Energia')
-      plt.savefig(target + ".png")
-      #plt.show()
+        T = energy.metadata.sampling_configuration.ofs
+        t = np.linspace(0, len(energy.data)/T, len(energy.data))
+        plt.plot(t, energy.data)
+        plt.xlabel('Tempo (s) ')
+        plt.ylabel('Energia')
+        #plt.savefig(target + ".png")
+        plt.show()
 
     return energy
 
-def centroide(target, plot=False):
-    wav2spec = spec.Wav2Spectrogram() # Objeto que converte arquivos wav para espectrogramas
-    s = wav2spec.convert(open(target, 'rb'), window_length=1024, window_step=512, spectrum_type='magnitude')
-
+def centroide(sound, plot=False):
     centr = cent.Centroid()
-    centroid = centr.calc_track(s)
+    centroid = centr.calc_track(sound)
 
     if plot:
         T = centroid.metadata.sampling_configuration.ofs
         t = np.linspace(0, len(centroid.data)/T, len(centroid.data))
-        plt.clf()
 
         plt.plot(t, centroid.data)
         plt.xlabel('Tempo (s)')
         plt.ylabel('Centroide espectral')
-        plt.savefig(target + ".png")
+        #plt.savefig(target + ".png")
         plt.show()
     
     return centroid
 
-def fluxo_espectral(target, plot=False):
-    wav2spec = spec.Wav2Spectrogram() # Objeto que converte arquivos wav para espectrogramas
-    s = wav2spec.convert(open(target, 'rb'), window_length=1024, window_step=512, spectrum_type='magnitude')
-
+def fluxo_espectral(sound, plot=False):
     fl = specfl.Flux()
-    flux = fl.calc_track(s)
+    flux = fl.calc_track(sound)
 
     if plot:
         T = flux.metadata.sampling_configuration.ofs
         t = np.linspace(0, len(flux.data)/T, len(flux.data))
 
-        h = np.log10(flux.data/np.max(flux.data))
-        tg = []
-        g = []
-        for i in xrange(len(h)-2):
-            if (h[i+1] > h[i]) and (h[i+1] > h[i+2]): # Condicao 1: eh um pico
-                if (h[i+1] > -.5): # Condicao 2: magnitude acima de um limiar
-                    g.append(h[i+1])
-                    tg.append(t[i+1])
-
+        #h = np.log10(flux.data/np.max(flux.data))
+        #tg = []
+        #g = []
+        #for i in xrange(len(h)-2):
+        #    if (h[i+1] > h[i]) and (h[i+1] > h[i+2]): # Condicao 1: eh um pico
+        #        if (h[i+1] > -.5): # Condicao 2: magnitude acima de um limiar
+        #            g.append(h[i+1])
+        #            tg.append(t[i+1])
         #plt.plot(t, h)
         #plt.plot(tg, g, 'ro')
 
@@ -80,21 +69,17 @@ def fluxo_espectral(target, plot=False):
 
     return flux
 
-def rolloff(target, plot=False):
-    wav2spec = spec.Wav2Spectrogram() # Objeto que converte arquivos wav para espectrogramas
-    s = wav2spec.convert(open(target, 'rb'), window_length=1024, window_step=512, spectrum_type='magnitude')
-
+def rolloff(sound, plot=False):
     roff = roll.Rolloff()
-    roll_off = roff.calc_track(s)
-    T = roll_off.metadata.sampling_configuration.ofs
-
-    t = np.linspace(0, len(roll_off.data)/T, len(roll_off.data))
+    roll_off = roff.calc_track(sound)
 
     if plot:
+        T = roll_off.metadata.sampling_configuration.ofs
+        t = np.linspace(0, len(roll_off.data)/T, len(roll_off.data))
         plt.plot(t, roll_off.data)
         plt.xlabel('Tempo (s)')
         plt.ylabel('Roll Off espectral')
-        plt.show()
+        #plt.show()
 
     return roll_off
 
@@ -103,7 +88,10 @@ def calcular_vetor(data):
     #return  [np.min(data), np.max(data), np.mean(data), np.var(data)] # len(data)]
     return  [np.mean(data), np.var(data)] # len(data)]
 
-def processar(som):
+def processar(target):
+    wav2spec = spec.Wav2Spectrogram() # Objeto que converte arquivos wav para espectrogramas
+    som = wav2spec.convert(open(target, 'rb'), window_length=1024, window_step=512, spectrum_type='magnitude')
+
     ro = rolloff(som)
     fe = fluxo_espectral(som)
     ce = centroide(som)
@@ -115,11 +103,11 @@ def processar(som):
     vetor_en = calcular_vetor(en.data)
 
     #return vetor_ro 
-    #return vetor_fe
-    #return vetor_ce
+    #return vetor_fe # bom
+    #return vetor_ce # bom
     #return vetor_en
     #return vetor_ro + vetor_fe + vetor_ce + vetor_en
-    return vetor_fe + vetor_ro
+    return vetor_fe + vetor_ce
 
 
 # SCRIPT #
@@ -136,19 +124,44 @@ X_caes = []
 # labels
 y = [] 
 
+
 print "# GATOS"
-for som in gatos[0:n_gatos/2]:
+for som in gatos[0:n_gatos]: #/2]:
     print som
     result = processar(som)
     X_gatos.append(result)
     y.append('G')
 
+#plt.show()
+#plt.clf()
+
 print "# CAES"
-for som in caes[0:n_caes/2]:
+for som in caes[0:n_caes]: #/2]:
     print som
     result = processar(som)
     X_caes.append(result)
     y.append('C')
+
+#plt.show()
+PLOT_SPREAD = True
+if PLOT_SPREAD:
+    mean_gatos = [v[0]for v in X_gatos]
+    var_gatos = [v[1] for v in X_gatos]
+    mean_caes = [v[0] for v in X_caes]
+    var_caes = [v[1] for v in X_caes]
+
+    plt.figure()
+    plt.title('')
+    plt.scatter(mean_gatos, var_gatos, color='red');
+    plt.scatter(mean_caes, var_caes, color='blue');
+    plt.ylabel('Media');
+    plt.xlabel('Variancia');
+    #plt.xlim([60, 120]);
+    #plt.ylim([1.6, 2.2]);
+    plt.legend(['Gatos', 'Caes'], loc=4);
+    plt.show()
+
+
 
 X = X_gatos + X_caes
 i = 0
@@ -160,7 +173,7 @@ for r in X:
 #print "Global min/max:", np.min(m), np.max(M)
 #print np.unique(map(len, X))
 
-neigh = KNeighborsClassifier(n_neighbors=5); # n_neighbors = K
+neigh = KNeighborsClassifier(n_neighbors=3); # n_neighbors = K
 neigh.fit(X_gatos + X_caes, y)
 
 acertos_gatos = 0
@@ -169,13 +182,13 @@ acertos_caes = 0
 print "# testes"
 print "# gatos"
 for som in gatos[n_gatos/2:n_gatos]:
-    print som
+    #print som
     result = processar(som)
     print "--> ", neigh.predict([result])
 
 print "# caes"
 for som in caes[n_caes/2:n_caes]:
-    print som
+    #print som
     result = processar(som)
     print "--> ", neigh.predict([result])
 
