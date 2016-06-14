@@ -8,111 +8,83 @@ import mir3.modules.features.centroid as cent
 import mir3.modules.features.energy as energ
 import mir3.modules.features.rolloff as roll
 import mir3.modules.features.flux as specfl
+import mir3.modules.features.flatness as flatn
+import mir3.modules.features.low_energy as lowen
 
 from sklearn.neighbors import KNeighborsClassifier
 import glob
 
-def energia(sound, plot=False):
-    en = energ.Energy()
-    energy = en.calc_track(sound)
+def feature(sound, feature, plot=False, show=False, xlabel="Tempo (s)", ylabel=""):
+    if isinstance(feature, lowen.LowEnergy):
+        ft = feature.calc_track(sound, 10) # default is 40 (deveria...)
+    else:
+        ft = feature.calc_track(sound)
 
     if plot:
-        T = energy.metadata.sampling_configuration.ofs
-        t = np.linspace(0, len(energy.data)/T, len(energy.data))
-        plt.plot(t, energy.data)
-        plt.xlabel('Tempo (s) ')
-        plt.ylabel('Energia')
+        T = ft.metadata.sampling_configuration.ofs
+        t = np.linspace(0, len(ft.data)/T, len(ft.data))
+        plt.plot(t, ft.data)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
         #plt.savefig(target + ".png")
-        plt.show()
+        if show:
+            plt.show()
 
-    return energy
+    return ft
 
-def centroide(sound, plot=False):
-    centr = cent.Centroid()
-    centroid = centr.calc_track(sound)
-
-    if plot:
-        T = centroid.metadata.sampling_configuration.ofs
-        t = np.linspace(0, len(centroid.data)/T, len(centroid.data))
-
-        plt.plot(t, centroid.data)
-        plt.xlabel('Tempo (s)')
-        plt.ylabel('Centroide espectral')
-        #plt.savefig(target + ".png")
-        plt.show()
-    
-    return centroid
-
-def fluxo_espectral(sound, plot=False):
-    fl = specfl.Flux()
-    flux = fl.calc_track(sound)
-
-    if plot:
-        T = flux.metadata.sampling_configuration.ofs
-        t = np.linspace(0, len(flux.data)/T, len(flux.data))
-
-        #h = np.log10(flux.data/np.max(flux.data))
-        #tg = []
-        #g = []
-        #for i in xrange(len(h)-2):
-        #    if (h[i+1] > h[i]) and (h[i+1] > h[i+2]): # Condicao 1: eh um pico
-        #        if (h[i+1] > -.5): # Condicao 2: magnitude acima de um limiar
-        #            g.append(h[i+1])
-        #            tg.append(t[i+1])
-        #plt.plot(t, h)
-        #plt.plot(tg, g, 'ro')
-
-        plt.plot(t, flux.data)
-        plt.xlabel('Tempo (s)')
-        plt.ylabel('Fluxo Espectral')
-        plt.show()
-
-    return flux
-
-def rolloff(sound, plot=False):
-    roff = roll.Rolloff()
-    roll_off = roff.calc_track(sound)
-
-    if plot:
-        T = roll_off.metadata.sampling_configuration.ofs
-        t = np.linspace(0, len(roll_off.data)/T, len(roll_off.data))
-        plt.plot(t, roll_off.data)
-        plt.xlabel('Tempo (s)')
-        plt.ylabel('Roll Off espectral')
-        #plt.show()
-
-    return roll_off
-
-def calcular_vetor(data):
+def vetor(data):
     # min/max/mean/var
     #return  [np.min(data), np.max(data), np.mean(data), np.var(data)] # len(data)]
     return  [np.mean(data), np.var(data)] # len(data)]
 
-def processar(target):
+def processar(target, features):
     wav2spec = spec.Wav2Spectrogram() # Objeto que converte arquivos wav para espectrogramas
     som = wav2spec.convert(open(target, 'rb'), window_length=1024, window_step=512, spectrum_type='magnitude')
 
-    ro = rolloff(som)
-    fe = fluxo_espectral(som)
-    ce = centroide(som)
-    en = energia(som)
+    ro=fe=ce=en=ft=le=None
+    f = features
+    if f[0]: ro = feature(som, roll.Rolloff(), plot=True, ylabel="Rolloff"); 
+    if f[1]: fe = feature(som, specfl.Flux(), plot=True, ylabel="Spectral Flux"); 
+    if f[2]: ce = feature(som, cent.Centroid(), plot=True, ylabel="Centroid"); 
+    if f[3]: en = feature(som, energ.Energy(), plot=True, ylabel="Energy"); 
+    if f[4]: ft = feature(som, flatn.Flatness(), plot=True, ylabel="Flatness"); 
+    if f[5]: le = feature(som, lowen.LowEnergy(), plot=True, ylabel="Low Energy"); 
 
-    vetor_ro = calcular_vetor(ro.data)
-    vetor_fe = calcular_vetor(fe.data)
-    vetor_ce = calcular_vetor(ce.data)
-    vetor_en = calcular_vetor(en.data)
+    result = []
+    if ro: vetor_ro = vetor(ro.data); result += vetor_ro
+    if fe: vetor_fe = vetor(fe.data); result += vetor_fe
+    if ce: vetor_ce = vetor(ce.data); result += vetor_ce
+    if en: vetor_en = vetor(en.data); result += vetor_en
+    if ft: vetor_ft = vetor(ft.data); result += vetor_ft
+    if le: vetor_le = vetor(le.data); result += vetor_le
 
-    #return vetor_ro 
-    #return vetor_fe # bom
-    #return vetor_ce # bom
-    #return vetor_en
-    #return vetor_ro + vetor_fe + vetor_ce + vetor_en
-    return vetor_fe + vetor_ce
+    return result
 
 
 # SCRIPT #
 gatos = glob.glob("db/cats/*.wav")
 caes = glob.glob("db/dogs/*.wav")
+
+# Features a serem utilizadas
+f_rolloff = 1
+f_spectral_flux = 0
+f_centroid = 0
+f_energy = 0
+f_flatness = 0
+f_low_energy = 0
+
+features = [f_rolloff, f_spectral_flux, f_centroid, f_energy, f_flatness, f_low_energy]
+features_labels = ['Rolloff','Spectral Flux','Centroid','Energy','Flatness','Low Energy']
+
+spread_title = []
+count = 0
+for v in features:
+    if v:
+        spread_title.append(features_labels[count])
+    count += 1
+spread_title = ' + '.join(spread_title)
+
+print spread_title 
 
 n_gatos = len(gatos)
 n_caes = len(caes)
@@ -128,30 +100,30 @@ y = []
 print "# GATOS"
 for som in gatos[0:n_gatos]: #/2]:
     print som
-    result = processar(som)
+    result = processar(som, features)
     X_gatos.append(result)
     y.append('G')
 
-#plt.show()
-#plt.clf()
+plt.show()
+plt.clf()
 
 print "# CAES"
 for som in caes[0:n_caes]: #/2]:
     print som
-    result = processar(som)
+    result = processar(som, features)
     X_caes.append(result)
     y.append('C')
 
-#plt.show()
+plt.show()
 PLOT_SPREAD = True
 if PLOT_SPREAD:
-    mean_gatos = [v[0]for v in X_gatos]
+    mean_gatos = [v[0] for v in X_gatos]
     var_gatos = [v[1] for v in X_gatos]
     mean_caes = [v[0] for v in X_caes]
     var_caes = [v[1] for v in X_caes]
 
     plt.figure()
-    plt.title('')
+    plt.title(spread_title)
     plt.scatter(mean_gatos, var_gatos, color='red');
     plt.scatter(mean_caes, var_caes, color='blue');
     plt.ylabel('Media');
@@ -183,13 +155,13 @@ print "# testes"
 print "# gatos"
 for som in gatos[n_gatos/2:n_gatos]:
     #print som
-    result = processar(som)
+    result = processar(som, features)
     print "--> ", neigh.predict([result])
 
 print "# caes"
 for som in caes[n_caes/2:n_caes]:
     #print som
-    result = processar(som)
+    result = processar(som, features)
     print "--> ", neigh.predict([result])
 
 
