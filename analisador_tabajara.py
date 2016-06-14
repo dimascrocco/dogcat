@@ -139,7 +139,7 @@ y = y_gatos + y_caes
 if PLOT_MULTIPLO:
     plt.show()
 
-if 1 > 2:
+if 1 > 0:
     plot_spread(X_gatos, X_caes, spread_title)
 
 
@@ -149,15 +149,57 @@ if 1 > 2:
 #    print y[i], r # label, feature vector
 #    i += 1
 
+if False:
+    neigh = KNeighborsClassifier(n_neighbors=3); # n_neighbors = K
+    dados_treino, dados_teste, label_treino, label_teste = train_test_split(X, y, train_size=.5)
+    #neigh.fit(X_gatos + X_caes, y_gatos + y_caes)
+    neigh.fit(dados_treino, label_treino)
+    score = neigh.score(dados_teste, label_teste)
+    print "% acertos: ", 100*score
 
-neigh = KNeighborsClassifier(n_neighbors=3); # n_neighbors = K
 
-dados_treino, dados_teste, label_treino, label_teste = train_test_split(X, y, train_size=.5)
-#neigh.fit(X_gatos + X_caes, y_gatos + y_caes)
-neigh.fit(dados_treino, label_treino)
-score = neigh.score(dados_teste, label_teste)
-print "% acertos: ", 100*score
+# Parametros para executar busca exaustiva
+train_size_min = 0.2
+train_size_max = 0.95
+train_size_step = 0.05
 
+# Numero de iteracoes para cada tamanho de conjunto de treino
+n_iter = 1000
+
+# Listas que armazenarao os resultados
+steps = []
+medias = []
+variancias = []
+
+train_size_atual = train_size_min
+while train_size_atual <= train_size_max: # para cada tamanho do conjunto de treino
+    acertos = []
+    for k in xrange(n_iter): # para cada iteracao do processo Monte Carlo
+        neigh = KNeighborsClassifier(n_neighbors=5); # n_neighbors = K
+        dados_treino, dados_teste, label_treino, label_teste = train_test_split(X, y, train_size=train_size_atual)
+        neigh.fit(dados_treino, label_treino);
+        score = neigh.score(dados_teste, label_teste);
+        acertos.append(score)
+    
+    steps.append(train_size_atual)
+    medias.append(np.mean(np.array(acertos)))
+    variancias.append(np.std(np.array(acertos)))
+    
+    train_size_atual += train_size_step
+
+
+plt.figure();
+plt.errorbar(steps, medias, yerr=variancias);
+plt.title(spread_title)
+plt.ylabel('Indice de acertos');
+plt.xlabel('Tamanho do conjunto de treino');
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.axvspan(0.475, .525, facecolor='g', alpha=0.5)
+
+plt.show()
+
+# MODO MANUAL
 #print "# testes"
 #print "# gatos"
 #for som in gatos[n_gatos/2:n_gatos]:
